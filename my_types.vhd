@@ -75,7 +75,7 @@ begin
 		result(-1 downto -lim) <= arg(left-1 downto left-lim);
 	end if;
 	return result;
-end function ufixed2float32;
+end function sfixed2float32;
 
 function ufixed2float64(arg : ufixed) return float64 is
 	variable left : integer := leftmost(arg);
@@ -101,7 +101,7 @@ begin
 		result(-1 downto -lim) <= arg(left-1 downto left-lim);
 	end if;
 	return result;
-end function ufixed2float64;
+end function sfixed2float64;
 
 function float32_2sfixed(arg : float32) return sfixed is
 	variable exp : integer := to_integer(arg(7 downto 0)) - 127;
