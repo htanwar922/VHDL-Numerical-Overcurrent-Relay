@@ -14,19 +14,19 @@ use ieee.std_logic_arith.all;
 --use ieee.std_logic_unsigned.all;
 --use ieee.std_logic_signed.all;
 
-use std.textio.all;
+--use std.textio.all;
 
 use work.my_functions.all;
 
 package my_types is	--take arrays as downto only
 
 type unresolved_fixed is array (integer range <>) of std_ulogic;	--taken in sign-magnitude representation
-alias fixed is unresolved_fixed;
+	subtype fixed is unresolved_fixed;
 	subtype ufixed is fixed;
 	subtype sfixed is fixed;
 	
 type unresolved_float is array (integer range <>) of std_ulogic;	--float is signed only
-alias float is unresolved_float;
+	subtype float is unresolved_float;
 	subtype float32 is float(8 downto -23);		-- 0 (8) 0111_1111 (7:0) 0000_0000_0000_0000_0000_000 (-1:-23)
 	subtype float64 is float(11 downto -52);		-- s (11) 011_1111_1111 (10:0) 0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000 (-1:-52)
 --	subtype float128 is float (15 downto -112);	-- 128 : s (15) 011_1111_1111_1111 (14:0) 0xffff_ffff_ffff_ffff_ffff_ffff_ffff (-1:-112)
@@ -57,10 +57,10 @@ function sleftmost(arg : sfixed) return integer; --leftmost '1' other than sign 
 
 function rebound(arg : sfixed; high,low : integer) return sfixed;
 
-function join(l,r : ufixed) return ufixed;		--decimal point of r preserved
-function join(l : std_logic; r : ufixed) return ufixed;
-function join(l,r : float) return float;
-function join(l : std_logic; r : float) return float;
+--function join_fixed(l,r : ufixed) return ufixed;		--decimal point of r preserved
+--function join_sl_fixed(l : std_logic; r : ufixed) return ufixed;
+--function join_float(l,r : float) return float;
+--function join_sl_float(l : std_logic; r : float) return float;
 
 end my_types;
 
@@ -71,7 +71,7 @@ package body my_types is
 constant one : std_logic_vector(0 downto 0) := "1";
 constant zero : std_logic_vector(0 downto 0) := "0";
 
-function join(l,r : fixed) return fixed is
+function join_fixed(l,r : fixed) return fixed is
 	variable high : integer := l'length + r'high;
 	variable low : integer := r'low;
 	variable result : fixed(high downto low);
@@ -79,17 +79,17 @@ begin
 	result(high downto r'high+1) := l;
 	result(r'high downto low) := r;
 	return result;
-end function join;
+end function join_fixed;
 
-function join(l : std_logic; r : fixed) return fixed is
+function join_sl_fixed(l : std_logic; r : fixed) return fixed is
 	variable result : fixed(r'high+1 downto r'low);
 begin
 	result(r'high+1) := l;
 	result(r'high downto r'low) := r;
 	return result;
-end function join;
+end function join_sl_fixed;
 
-function join(l,r : float) return float is
+function join_float(l,r : float) return float is
 	variable high : integer := l'length + r'high;
 	variable low : integer := r'low;
 	variable result : float(high downto low);
@@ -97,15 +97,15 @@ begin
 	result(high downto r'high+1) := l;
 	result(r'high downto low) := r;
 	return result;
-end function join;
+end function join_float;
 
-function join(l : std_logic; r : float) return float is
+function join_sl_float(l : std_logic; r : float) return float is
 	variable result : float(r'high+1 downto r'low);
 begin
 	result(r'high+1) := l;
 	result(r'high downto r'low) := r;
 	return result;
-end function join;
+end function join_sl_float;
 
 --function conv_float2sulv(arg: integer; size: integer) return std_ulogic_vector is
 --	variable result: std_ulogic_vector(size-1 downto 0);
@@ -140,21 +140,24 @@ end function rebound;
 function ufixed2float(arg : ufixed; exp_w : natural; fract_w : natural) return float is
 	variable result : float(exp_w downto -fract_w);
 begin
-	result := sfixed2float(join('0',arg), exp_w, fract_w);
+	result := sfixed2float(join_sl_fixed('0',arg), exp_w, fract_w);
 	return result;
 end function ufixed2float;
 
 function sfixed2float(arg : sfixed; exp_w : natural; fract_w : natural) return float is
 	variable left : integer := sleftmost(arg);
 	variable lim : integer;
-	variable ubase : ieee.numeric_std.unsigned(exp_w-1 downto 0) := (exp_w-1 => '0', others => '1');
-	variable exp_base : natural := to_integer(ubase);
-	variable exp : integer := exp_base+left;
-	variable result : float(exp_w downto -fract_w);
-	variable exparg : std_logic_vector(exp_w-1 downto 0) := conv_std_logic_vector(exp, exp_w);
+	variable ubase : ieee.numeric_std.unsigned(exp_w-1 downto 0) := (others => '1');
+	variable exp_base : natural;
+	variable exp : integer;
+	variable result : float(exp_w downto -fract_w) := (others => '0');
+	variable exparg : std_logic_vector(exp_w-1 downto 0);
 	variable argslv : std_logic_vector(arg'length-1 downto 0);
 begin
-	result := (others => '0');
+	ubase(exp_w-1) := '0';
+	exp_base := to_integer(ubase);
+	exp := exp_base+left;
+	exparg := conv_std_logic_vector(exp, exp_w);
 	argslv := to_slv(arg);
 	result(exp_w) := arg(arg'high);
 	result(exp_w-1 downto 0) := float(exparg(exp_w-1 downto 0));
@@ -211,7 +214,7 @@ function float2sfixed(arg : float := "00111111100000000000000000000000") return 
 	
 begin
 	result(exp+1) := arg(arg'high);
-	result(exp downto exp+arg'low) := sfixed(to_slv(join(std_logic'('1'), arg(-1 downto arg'low))));
+	result(exp downto exp+arg'low) := sfixed(to_slv(join_sl_float(std_logic'('1'), arg(-1 downto arg'low))));
 	exp := to_integer(ieee.numeric_std.unsigned(to_slv(arg(arg'high-1 downto 0)))) - exp_base;
 	result := rebound(result, exp+1, exp+arg'low);
 	return result;
@@ -230,7 +233,7 @@ function float64_2sfixed(arg : float64) return sfixed is
 	variable result : sfixed(exp+1 downto exp-52) := (others => '0');
 begin
 	result(exp+1) := arg(arg'high);
-	result(exp downto exp-52) := sfixed(to_slv(join(std_logic'('1'), arg(-1 downto -52))));
+	result(exp downto exp-52) := sfixed(to_slv(join_sl_float(std_logic'('1'), arg(-1 downto -52))));
 	exp := to_integer(ieee.numeric_std.unsigned(to_slv(arg(10 downto 0)))) - 1023;
 	result := rebound(result, exp+1, exp-52);
 	return result;
@@ -239,15 +242,16 @@ end function float64_2sfixed;
 function sfixed2ufixed(arg : sfixed; ch : choice := 0) return ufixed is
 	variable result : ufixed(arg'high-1 downto arg'low) := arg(arg'high-1 downto arg'low);
 begin
-	if(ch=0) then return join('0',result);		--append 0
+	if(ch=0) then return join_sl_fixed('0',result);		--append 0
 	elsif(ch=1) then return result;				--truncate s-bit
-	else return join(arg(arg'high), result);		--return as it is
+	else return join_sl_fixed(arg(arg'high), result);		--return as it is
 	end if;
 end function sfixed2ufixed;
 
 function ufixed2sfixed(arg : ufixed) return sfixed is
-	variable result : sfixed(arg'high+1 downto arg'low) := join('0',arg);
+	variable result : sfixed(arg'high+1 downto arg'low);
 begin
+	result := join_sl_fixed('0',arg);
 	return result;
 end function ufixed2sfixed;
 
@@ -286,7 +290,5 @@ begin
 	end loop;
 	return integer'low;
 end function sleftmost;
-
-
 
 end my_types;
