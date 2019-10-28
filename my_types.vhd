@@ -10,57 +10,66 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use ieee.std_logic_arith.all;
+--use ieee.std_logic_arith.all;
 --use ieee.std_logic_unsigned.all;
 --use ieee.std_logic_signed.all;
 
---use std.textio.all;
+use std.textio.all;
+use ieee.std_logic_textio.all;
 
 use work.my_functions.all;
 
-package my_types is	--take arrays as downto only
+-----------------------------------------------------------------------------------------------------------------------------------
 
-type unresolved_fixed is array (integer range <>) of std_ulogic;	--taken in sign-magnitude representation
+package my_types is																										--take arrays as downto only
+
+type unresolved_fixed is array (integer range <>) of std_ulogic;											--taken in sign-magnitude representation --numbers with negative starting index treat as unsigned or positive
 	subtype fixed is unresolved_fixed;
 	subtype ufixed is fixed;
 	subtype sfixed is fixed;
 	
-type unresolved_float is array (integer range <>) of std_ulogic;	--float is signed only
+type unresolved_float is array (integer range <>) of std_ulogic;											--float is signed only
 	subtype float is unresolved_float;
-	subtype float32 is float(8 downto -23);		-- 0 (8) 0111_1111 (7:0) 0000_0000_0000_0000_0000_000 (-1:-23)
-	subtype float64 is float(11 downto -52);		-- s (11) 011_1111_1111 (10:0) 0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000 (-1:-52)
---	subtype float128 is float (15 downto -112);	-- 128 : s (15) 011_1111_1111_1111 (14:0) 0xffff_ffff_ffff_ffff_ffff_ffff_ffff (-1:-112)
+	subtype float32 is float(8 downto -23);																		-- 0 (8) 0111_1111 (7:0) 0000_0000_0000_0000_0000_000 (-1:-23)
+	subtype float64 is float(11 downto -52);																		-- s (11) 011_1111_1111 (10:0) 0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000 (-1:-52)
+--	subtype float128 is float (15 downto -112);																	-- 128 : s (15) 011_1111_1111_1111 (14:0) 0xffff_ffff_ffff_ffff_ffff_ffff_ffff (-1:-112)
 
 type choice is range 0 to 3;
 
-function ufixed2float(arg : ufixed; exp_w : natural; fract_w : natural) return float;		--input exp_w as arg'high and fract_w as -arg'low
+-----------------------------------------------------------------------------------------------------------------------------------
+
+function ufixed2float(arg : ufixed; exp_w : natural; fract_w : natural) return float;				--input exp_w as arg'high and fract_w as -arg'low
 function sfixed2float(arg : sfixed; exp_w : natural; fract_w : natural) return float;
 function ufixed2float32(arg : ufixed) return float32;
 function sfixed2float32(arg : sfixed) return float32;
 function ufixed2float64(arg : ufixed) return float64;
-function sfixed2float64(arg : sfixed) return float64;
+function sfixed2float64(arg : sfixed) return float64;																																								--checked
 
+-----------------------------------------------------------------------------------------------------------------------------------
 
-function float2sfixed(arg : float := "00111111100000000000000000000000") return sfixed;
-function float32_2sfixed(arg : float32 := "00111111100000000000000000000000") return sfixed;
-function float64_2sfixed(arg : float64) return sfixed;
+function float2sfixed(arg : float; high, low : integer; ch_round : choice := 0; ch_ovf : choice := 0) return sfixed;
+function float32_2sfixed(arg : float32; high, low : integer;  ch_round : choice := 0; ch_ovf : choice := 0) return sfixed;
+function float64_2sfixed(arg : float64; high, low : integer;  ch_round : choice := 0; ch_ovf : choice := 0) return sfixed;																																--checked
 
-function sfixed2ufixed(arg : sfixed; ch : choice := 0) return ufixed;	--choice 0: change sign bit to 0, choice 1: truncate sign bit choice 2: return as it is
-function ufixed2sfixed(arg : ufixed) return sfixed;
+-----------------------------------------------------------------------------------------------------------------------------------
 
 function to_slv(arg : fixed) return std_logic_vector;
-function to_slv(arg : float := "00111111100000000000000000000000") return std_logic_vector;
---function sfixed2signed(arg : sfixed) return ieee.numeric_std.signed;
+function to_slv(arg : float) return std_logic_vector;
+
+-----------------------------------------------------------------------------------------------------------------------------------
 
 function leftmost(arg : ufixed) return integer; --index of leftmost '1'
-function sleftmost(arg : sfixed) return integer; --leftmost '1' other than sign bit
+function sleftmost(arg : sfixed) return integer; --leftmost '1' other than sign bit																														--checked
 
-function rebound(arg : sfixed; high,low : integer) return sfixed;
+-----------------------------------------------------------------------------------------------------------------------------------
 
---function join_fixed(l,r : ufixed) return ufixed;		--decimal point of r preserved
---function join_sl_fixed(l : std_logic; r : ufixed) return ufixed;
---function join_float(l,r : float) return float;
+function uresize(arg : fixed; constant high : integer; constant low : integer; ch_round : choice := 0; ch_ovf : choice := 0) return fixed;		--round: choice 0: round-truncate, choice 1: round-fixed; ovf : choice 0: truncate, choice 1: saturate
+function rebound(arg : sfixed; high,low : integer) return sfixed;											--higher bound have same bits, zeros appended to lower							--checked
+--function join_sl_fixed(l : std_logic; r : ufixed) return ufixed;										--decimal point of r preserved
 --function join_sl_float(l : std_logic; r : float) return float;
+function and_reduce(arg : fixed) return std_logic;
+function or_reduce(arg : fixed) return std_logic;
+function round(arg : fixed; index : integer; ch : choice := 0) return fixed;							--fixed treated as unsigned; choice 0: round wrt index-1, choice 1: just add 1
 
 end my_types;
 
@@ -68,18 +77,13 @@ end my_types;
 
 package body my_types is
 
-constant one : std_logic_vector(0 downto 0) := "1";
-constant zero : std_logic_vector(0 downto 0) := "0";
-
-function join_fixed(l,r : fixed) return fixed is
-	variable high : integer := l'length + r'high;
-	variable low : integer := r'low;
-	variable result : fixed(high downto low);
-begin
-	result(high downto r'high+1) := l;
-	result(r'high downto low) := r;
-	return result;
-end function join_fixed;
+--procedure writeproc ( sig: in float) is
+--  variable li : line;
+--  file output : text open write_mode is "output";
+--  begin
+--    write(li, std_logic_vector(sig));
+--    writeline(output, li);
+--end procedure writeproc;
 
 function join_sl_fixed(l : std_logic; r : fixed) return fixed is
 	variable result : fixed(r'high+1 downto r'low);
@@ -89,16 +93,6 @@ begin
 	return result;
 end function join_sl_fixed;
 
-function join_float(l,r : float) return float is
-	variable high : integer := l'length + r'high;
-	variable low : integer := r'low;
-	variable result : float(high downto low);
-begin
-	result(high downto r'high+1) := l;
-	result(r'high downto low) := r;
-	return result;
-end function join_float;
-
 function join_sl_float(l : std_logic; r : float) return float is
 	variable result : float(r'high+1 downto r'low);
 begin
@@ -107,167 +101,185 @@ begin
 	return result;
 end function join_sl_float;
 
---function conv_float2sulv(arg: integer; size: integer) return std_ulogic_vector is
---	variable result: std_ulogic_vector(size-1 downto 0);
---	variable temp: integer;
---	attribute synthesis_return of result:variable is "feed_through" ;
---begin
---	temp := arg;
---	for i in 0 to size-1 loop
---		if (temp mod 2) = 1 then
---			result(i) := '1';
---		else 
---			result(i) := '0';
---		end if;
---		if temp > 0 then
---			temp := temp / 2;
---		else
---			temp := (temp - 1) / 2;
---		end if;
---	end loop;
---	return result;
---end;
+function and_reduce(arg : fixed) return std_logic is
+	variable res : std_logic := '1';
+begin
+--	report "and_reduce";
+	if(arg'length < 0) then return '0'; end if;
+	for i in arg'low to arg'high loop
+		res := res and arg(i);
+	end loop;
+	return res;
+end function and_reduce;
+
+function or_reduce(arg : fixed) return std_logic is
+	variable res : std_logic := '0';
+begin
+--	report "or_reduce";
+	if(arg'length < 0) then return '1'; end if;
+	for i in arg'low to arg'high loop
+		res := res or arg(i);
+	end loop;
+	return res;
+end function or_reduce;
+
+function round(arg : fixed; index : integer; ch : choice := 0) return fixed is				--fixed treated as unsigned; choice 0: round wrt index-1, choice 1: just add 1
+	variable result : fixed(arg'high downto index) := arg(arg'high downto index);
+	function add_carry(ar : fixed; cin : std_logic) return fixed is
+			variable res : fixed(ar'range) := ar;
+			variable c : std_logic := cin;
+		begin
+			for i in ar'low to ar'high loop
+				res(i) := ar(i) xor c;
+				c := ar(i) and c;
+			end loop;
+			return res;
+	end function add_carry;
+begin
+--	report "round fn";
+	if(index > arg'low and ch = 0) then result := add_carry(result,arg(index-1));
+	elsif(ch = 1) then result := add_carry(result,'1');
+	end if;
+	return result;
+end function round;
 
 function rebound(arg : sfixed; high,low : integer) return sfixed is
 	variable result : sfixed(high downto low) := (others => '0');
 	variable len : integer := minimum(high-low+1, arg'length);
 begin
+--	report "rebound";
 	result(high) := arg(arg'high);
-	result(high-1 downto high-1-len) := arg(arg'high-1 downto arg'high-1-len);
+	result(high-1 downto high+1-len) := arg(arg'high-1 downto arg'high+1-len);
 	return result;
 end function rebound;
 
-function ufixed2float(arg : ufixed; exp_w : natural; fract_w : natural) return float is
-	variable result : float(exp_w downto -fract_w);
+function uresize(arg : fixed; constant high : integer; constant low : integer; constant ch_round : choice := 0; ch_ovf : choice := 0) return fixed is	--round: choice 0: round-truncate, choice 1: round-fixed; ovf : choice 0: truncate, choice 1: saturate
+	variable or_arg : std_logic := '0';
+	constant h : integer := minimum(high, arg'high);
+	constant l : integer := maximum(low, arg'low);
+	variable result : fixed(high downto low) := (others => '0');
 begin
-	result := sfixed2float(join_sl_fixed('0',arg), exp_w, fract_w);
+--	report "arg high in uresize is  " & integer'image(arg'high);
+	if(h >= l) then result(h downto l) := arg(h downto l); end if;
+	if(high < arg'high) then																									--check ovf
+		if(ch_ovf = 0) then null; --report "ovf truncate";																--truncate
+		else
+			if(or_reduce(arg(arg'high downto high+1)) = '1') then
+				result(high downto low) := (others => '1'); return result;	--report "saturate";				--saturate
+			end if;
+		end if;
+		if(ch_round = 0) then null; --report "round truncate";														--round-truncate
+		elsif(l /= arg'low) then result(h downto l) := round(arg(h downto arg'low),l); 						--round-fixed iff it is needed		--report "round fixed";
+		else null;
+		end if;
+	else																																--no ovf
+		if(ch_round = 0) then null; --report "round truncate 2";														--round-truncate
+		elsif(l /= arg'low and and_reduce(arg(h downto l)) = '0') then result(high downto l) := round(arg(h downto l-1),l);
+--			report "round fixed 2";																								--round-fixed iff it is needed and possible as well without ovf error (the exception is for all '1' case)
+		else null;
+		end if;
+	end if;
 	return result;
+end function uresize;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+function ufixed2float(arg : ufixed; exp_w : natural; fract_w : natural) return float is
+begin
+	return sfixed2float(fixed('0' & to_slv(arg)), exp_w, fract_w);																					--join_sl_fixed('0',arg)
 end function ufixed2float;
 
-function sfixed2float(arg : sfixed; exp_w : natural; fract_w : natural) return float is
+function sfixed2float(arg : sfixed; exp_w : natural; fract_w : natural) return float is					--result may deviate from actual expected for "(0/1)11111..." type arg if it is being derived from its reverse conversion function
 	variable left : integer := sleftmost(arg);
 	variable lim : integer;
-	variable ubase : ieee.numeric_std.unsigned(exp_w-1 downto 0) := (others => '1');
-	variable exp_base : natural;
+	variable ubase : unsigned(exp_w-1 downto 0) := (others => '1');
+	variable exp_base : natural := 0;
 	variable exp : integer;
 	variable result : float(exp_w downto -fract_w) := (others => '0');
-	variable exparg : std_logic_vector(exp_w-1 downto 0);
-	variable argslv : std_logic_vector(arg'length-1 downto 0);
+	variable exp_arg : std_logic_vector(exp_w-1 downto 0);
 begin
-	ubase(exp_w-1) := '0';
-	exp_base := to_integer(ubase);
-	exp := exp_base+left;
-	exparg := conv_std_logic_vector(exp, exp_w);
-	argslv := to_slv(arg);
-	result(exp_w) := arg(arg'high);
-	result(exp_w-1 downto 0) := float(exparg(exp_w-1 downto 0));
-	if(left > exp_base) then
+	if(left=integer'low) then
+		result := (others => '0');
+		return result;
+	end if;
+	ubase(exp_w-1) := '0'; exp_base := to_integer(ubase); exp := exp_base+left;
+	exp_arg := std_logic_vector(to_unsigned(exp, exp_w));
+	result(exp_w) := arg(arg'high); result(exp_w-1 downto 0) := float(exp_arg(exp_w-1 downto 0));
+	if(left > exp_base) then																											--return infinity
 		result(-1 downto -fract_w)  := (others => '0');
       result(exp_w-1 downto 0) := (others => '1');
       return result;
 	end if;
-	if(left=integer'low) then
-		result := (others => '0');
-		return result;
-	else
-		if(left - arg'low > fract_w) then lim := fract_w;
-		else lim := left-arg'low;
-		end if;
-		result(-1 downto -lim) := float(argslv(arg'length+left-1 downto arg'length+left-lim));
-	end if;
+	lim := minimum(left-arg'low,fract_w);																							--1 less than actual length in former case to account for '1' preceeding the decimal in scientific notation; fract_w is already 1 less for the same purpose
+	result(-1 downto -lim) := float(to_slv(uresize(arg(left-1 downto arg'low), left-1, left-lim, 1, 1))); 	--float(arg_slv(-arg'low+left-1 downto -arg'low+left-lim)); float(to_slv(round(arg(left-1 downto arg'low), left-lim))); 
+	if(arg'high < 0) then result(exp_w) := '0'; end if;																		--numbers with negative starting index treat as unsigned
 	return result;
-end function sfixed2float;	
-	
+end function sfixed2float;
+
 function ufixed2float32(arg : ufixed) return float32 is
-	variable result : float32;
 begin
-	result := ufixed2float(arg,8,23);
-	return result;
+	return ufixed2float('0' & arg,8,23);
 end function ufixed2float32;
 
 function sfixed2float32(arg : sfixed) return float32 is
-	variable result : float32 := (others => '0');
 begin
-	result := sfixed2float(arg, 8, 23);
-	return result;
+	return float32(sfixed2float(arg, 8, 23));
 end function sfixed2float32;
 
 function ufixed2float64(arg : ufixed) return float64 is
-	variable result : float64 := (others => '0');
 begin
-	result := ufixed2float(arg,12,52);
-	return result;
+	return ufixed2float('0' & arg,11,52);
 end function ufixed2float64;
 
 function sfixed2float64(arg : sfixed) return float64 is
-	variable result : float64 := (others => '0');
 begin
-	result := sfixed2float(arg,12,52);
-	return result;
+	return sfixed2float(arg,11,52);
 end function sfixed2float64;
 
-function float2sfixed(arg : float := "00111111100000000000000000000000") return sfixed is
-	variable exp : integer := 0;
-	variable ubase : ieee.numeric_std.unsigned(arg'high-1 downto 0) := ieee.numeric_std.unsigned(to_slv(arg(arg'high-1 downto 0)));
-	variable exp_base : natural := to_integer(ubase);
-	variable result : sfixed(exp+1 downto exp-23) := (others => '0');
-	
+-----------------------------------------------------------------------------------------------------------------------------------
+
+function float2sfixed(arg : float; high, low : integer; ch_round : choice := 0; ch_ovf : choice := 0) return sfixed is
+	variable ubase : std_logic_vector(arg'high-1 downto 0) := (others => '1');
+	variable exp_base : natural;
+	variable exp : integer;
+	variable result : sfixed(high downto low) := (others => '0');
+	variable arg_sfx : sfixed(arg'high downto arg'low) := sfixed(to_slv(arg));
 begin
-	result(exp+1) := arg(arg'high);
-	result(exp downto exp+arg'low) := sfixed(to_slv(join_sl_float(std_logic'('1'), arg(-1 downto arg'low))));
+	ubase(arg'high-1) := '0';	exp_base := to_integer(ieee.numeric_std.unsigned(ubase));
 	exp := to_integer(ieee.numeric_std.unsigned(to_slv(arg(arg'high-1 downto 0)))) - exp_base;
-	result := rebound(result, exp+1, exp+arg'low);
+	result(high) := arg(arg'high);
+	if(exp > high-1) then result(high-1 downto low) := (others => '1'); --report "saturate";				--saturate signed
+	elsif(exp < low) then null; --report "zero";																			--all '0' signed
+	else
+		result(exp) := '1'; null; --report "rounding now";
+		result(exp-1 downto low) := uresize(arg_sfx(-1 downto arg'low),-1,low-exp,ch_round,ch_ovf);
+	end if;
 	return result;
 end function float2sfixed;
 
-function float32_2sfixed(arg : float32 := "00111111100000000000000000000000") return sfixed is
-	variable exp : integer := 0;
-	variable result : sfixed(exp+1 downto exp-23) := (others => '0');
+function float32_2sfixed(arg : float32; high, low : integer;  ch_round : choice := 0; ch_ovf : choice := 0) return sfixed is
 begin
-	result := float2sfixed(arg);
-	return result;
+	return float2sfixed(arg,high,low,ch_round,ch_ovf);
 end function float32_2sfixed;
 
-function float64_2sfixed(arg : float64) return sfixed is
-	variable exp : integer := 0;
-	variable result : sfixed(exp+1 downto exp-52) := (others => '0');
+function float64_2sfixed(arg : float64; high, low : integer;  ch_round : choice := 0; ch_ovf : choice := 0) return sfixed is
 begin
-	result(exp+1) := arg(arg'high);
-	result(exp downto exp-52) := sfixed(to_slv(join_sl_float(std_logic'('1'), arg(-1 downto -52))));
-	exp := to_integer(ieee.numeric_std.unsigned(to_slv(arg(10 downto 0)))) - 1023;
-	result := rebound(result, exp+1, exp-52);
-	return result;
+	return float2sfixed(arg,high,low,ch_round,ch_ovf);
 end function float64_2sfixed;
-	
-function sfixed2ufixed(arg : sfixed; ch : choice := 0) return ufixed is
-	variable result : ufixed(arg'high-1 downto arg'low) := arg(arg'high-1 downto arg'low);
-begin
-	if(ch=0) then return join_sl_fixed('0',result);		--append 0
-	elsif(ch=1) then return result;				--truncate s-bit
-	else return join_sl_fixed(arg(arg'high), result);		--return as it is
-	end if;
-end function sfixed2ufixed;
 
-function ufixed2sfixed(arg : ufixed) return sfixed is
-	variable result : sfixed(arg'high+1 downto arg'low);
-begin
-	result := join_sl_fixed('0',arg);
-	return result;
-end function ufixed2sfixed;
+-----------------------------------------------------------------------------------------------------------------------------------
 
 function to_slv(arg : fixed) return std_logic_vector is
-		variable result : std_logic_vector(arg'length-1 downto 0);
 begin
-	result := std_logic_vector(arg);
-	return result;
+	return std_logic_vector(arg);
 end function to_slv;
 
-function to_slv(arg : float := "00111111100000000000000000000000") return std_logic_vector is
-	variable result : std_logic_vector(arg'length-1 downto 0);
+function to_slv(arg : float) return std_logic_vector is
 begin
-	result := std_logic_vector(arg);
-	return result;
+	return std_logic_vector(arg);
 end function to_slv;
+
+-----------------------------------------------------------------------------------------------------------------------------------
 
 function leftmost(arg : ufixed) return integer is
 	variable left : integer := arg'high;
@@ -283,6 +295,7 @@ end function leftmost;
 function sleftmost(arg : sfixed) return integer is
 	variable left : integer := arg'high-1;
 begin
+	if(arg'high < 0) then left := arg'high; end if;																		--numbers with negative starting index treat as unsigned
 	while left >= arg'low loop
 		if(arg(left)='1') then return left;
 		end if;
