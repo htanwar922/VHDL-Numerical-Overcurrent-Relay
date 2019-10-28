@@ -1,4 +1,4 @@
 # VHDL_fixed_float_types
-My fixed and float packages
+Mere fixed and float packages
 
 Refer my_types.vhd
