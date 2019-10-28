@@ -8,23 +8,29 @@ use std.textio.all;
 
 use work.my_types.all;
 use work.my_fixed_package.all;
+use work.my_float_package.all;
 
 entity testbench is
 end testbench;
 
 architecture behavior of testbench is
 	component check
-		port( a : in ufixed(4 downto -4);
-				y : out float(5 downto -3)
+		port( a : in float(6 downto -7);
+				y : out float(6 downto -7);
+				y2 : out sfixed(7 downto -7)
 			);
 	end component;
 
-	signal t_a : ufixed(4 downto -4) := "001100011";
-	signal t_y : float(5 downto -3);
+	signal t_a : float(6 downto -7) := "11000111100110"; --:= "11";
+	signal t_y : float(6 downto -7);
+	signal t_y2 : sfixed(7 downto -7);
 	signal clk : bit;
 
 begin
-	t_check: check port map(a => t_a, y => t_y);
+	t_check: check port map(a => t_a,
+									y => t_y,
+									y2 => t_y2
+									);
 	
 	clock : process
 	begin
@@ -36,12 +42,15 @@ begin
 	
 	tb : process
 	begin
-		--t_a := "001100011";
-		wait for 1000 ns; -- wait until global set/reset completes
+		t_a <= "01001111100110";
+		wait for 300 ns; -- wait until global set/reset completes
 
-		t_a <= "101101101";
+		t_a <= "00111010100110";
+		wait for 300 ns;
+		
+		t_a <= "00111001100110";
 
-		wait for 1000 us; -- will wait forever
+		wait for 1000 ns;
 	end process tb;
 	
 end;
