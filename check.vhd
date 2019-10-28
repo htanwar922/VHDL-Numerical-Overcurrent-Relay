@@ -8,16 +8,19 @@ use std.textio.all;
 
 use work.my_types.all;
 use work.my_fixed_package.all;
+use work.my_float_package.all;
 
 entity check is
-	port(a : in ufixed(4 downto -4) := "001100011";
-			y : out float(5 downto -3)
+	port(a : in float(6 downto -7); --:= "001100011";
+			y : out float(6 downto -7);
+			y2 : out sfixed(7 downto -7)
 		);
 end check;
 
 architecture behavioral of check is
-
+	signal yx : sfixed(7 downto -7);
 begin
-	y <= ufixed2float(a,y'high,-y'low);
-
+	yx <= float2sfixed(a,7,-7,0,0);
+	y2 <= yx;
+	y <= sfixed2float(yx,6,7);
 end behavioral;
