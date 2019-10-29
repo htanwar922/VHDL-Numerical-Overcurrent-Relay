@@ -1,34 +1,39 @@
---
---	Package File Template
---
---	Purpose: This package defines supplemental types, subtypes, 
---		 constants, and functions 
---
---   To use any of the example code shown below, uncomment the lines and modify as necessary
---
+
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity my_entity is
+	port(a : in std_logic; y : out std_logic);
+end entity;
+
+architecture my_arch of my_entity is
+begin
+	y<=a when a='1' else 'X';
+end architecture;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
---use ieee.std_logic_arith.all;
---use ieee.std_logic_unsigned.all;
---use ieee.std_logic_signed.all;
 
 use std.textio.all;
 use ieee.std_logic_textio.all;
 
 use work.my_functions.all;
 
------------------------------------------------------------------------------------------------------------------------------------
-
 package my_types is																										--take arrays as downto only
 
-type unresolved_fixed is array (integer range <>) of std_ulogic;											--taken in sign-magnitude representation --numbers with negative starting index treat as unsigned or positive
+type unresolved_decimal is array (integer range <>) of std_ulogic;
+alias decimal is unresolved_decimal;
+
+subtype unresolved_fixed is decimal;											--taken in sign-magnitude representation --numbers with negative starting index treat as unsigned or positive
 	subtype fixed is unresolved_fixed;
 	subtype ufixed is fixed;
 	subtype sfixed is fixed;
 	
-type unresolved_float is array (integer range <>) of std_ulogic;											--float is signed only
+subtype unresolved_float is decimal;											--float is signed only
 	subtype float is unresolved_float;
 	subtype float32 is float(8 downto -23);																		-- 0 (8) 0111_1111 (7:0) 0000_0000_0000_0000_0000_000 (-1:-23)
 	subtype float64 is float(11 downto -52);																		-- s (11) 011_1111_1111 (10:0) 0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000 (-1:-52)
@@ -53,8 +58,7 @@ function float64_2sfixed(arg : float64; high, low : integer;  ch_round : choice 
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
-function to_slv(arg : fixed) return std_logic_vector;
-function to_slv(arg : float) return std_logic_vector;
+function to_slv(arg : decimal) return std_logic_vector;
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -63,7 +67,7 @@ function sleftmost(arg : sfixed) return integer; --leftmost '1' other than sign 
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
-function uresize(arg : fixed; constant high : integer; constant low : integer; ch_round : choice := 0; ch_ovf : choice := 0) return fixed;		--round: choice 0: round-truncate, choice 1: round-fixed; ovf : choice 0: truncate, choice 1: saturate
+function uresize(arg : fixed; high,low : integer; ch_round : choice := 0; ch_ovf : choice := 0) return fixed;		--round: choice 0: round-truncate, choice 1: round-fixed; ovf : choice 0: truncate, choice 1: saturate
 function rebound(arg : sfixed; high,low : integer) return sfixed;											--higher bound have same bits, zeros appended to lower							--checked
 --function join_sl_fixed(l : std_logic; r : ufixed) return ufixed;										--decimal point of r preserved
 --function join_sl_float(l : std_logic; r : float) return float;
@@ -76,14 +80,6 @@ end my_types;
 --============================================================================================================================================================================================
 
 package body my_types is
-
---procedure writeproc ( sig: in float) is
---  variable li : line;
---  file output : text open write_mode is "output";
---  begin
---    write(li, std_logic_vector(sig));
---    writeline(output, li);
---end procedure writeproc;
 
 function join_sl_fixed(l : std_logic; r : fixed) return fixed is
 	variable result : fixed(r'high+1 downto r'low);
@@ -123,6 +119,8 @@ begin
 	return res;
 end function or_reduce;
 
+-----------------------------------------------------------------------------------------------------------------------------------
+
 function round(arg : fixed; index : integer; ch : choice := 0) return fixed is				--fixed treated as unsigned; choice 0: round wrt index-1, choice 1: just add 1
 	variable result : fixed(arg'high downto index) := arg(arg'high downto index);
 	function add_carry(ar : fixed; cin : std_logic) return fixed is
@@ -153,28 +151,40 @@ begin
 	return result;
 end function rebound;
 
-function uresize(arg : fixed; constant high : integer; constant low : integer; constant ch_round : choice := 0; ch_ovf : choice := 0) return fixed is	--round: choice 0: round-truncate, choice 1: round-fixed; ovf : choice 0: truncate, choice 1: saturate
+function urebound(arg : decimal; high,low : integer) return decimal is
+	variable result : decimal(high downto low) := (others => '0');
+	variable len : integer := minimum(high-low+1, arg'length);
+begin
+	result(high downto high+1-len) := arg(arg'high-1 downto arg'high+1-len);
+	return result;
+end function urebound;
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+function uresize(arg : fixed; high,low : integer; ch_round : choice := 0; ch_ovf : choice := 0) return fixed is	--round: choice 0: round-truncate, choice 1: round-fixed; ovf : choice 0: truncate, choice 1: saturate
 	variable or_arg : std_logic := '0';
 	constant h : integer := minimum(high, arg'high);
 	constant l : integer := maximum(low, arg'low);
-	variable result : fixed(high downto low) := (others => '0');
+	constant h_b : natural := high-low+1;
+	constant l_b : natural := 0;
+	variable result : fixed(h_b downto l_b) := (others => '0');
 begin
 --	report "arg high in uresize is  " & integer'image(arg'high);
-	if(h >= l) then result(h downto l) := arg(h downto l); end if;
+	if(h >= l) then result(h-low downto l-low) := arg(h downto l); end if;
 	if(high < arg'high) then																									--check ovf
 		if(ch_ovf = 0) then null; --report "ovf truncate";																--truncate
 		else
 			if(or_reduce(arg(arg'high downto high+1)) = '1') then
-				result(high downto low) := (others => '1'); return result;	--report "saturate";				--saturate
+				result(high-low downto low-low) := (others => '1'); return result;	--report "saturate";				--saturate
 			end if;
 		end if;
 		if(ch_round = 0) then null; --report "round truncate";														--round-truncate
-		elsif(l /= arg'low) then result(h downto l) := round(arg(h downto arg'low),l); 						--round-fixed iff it is needed		--report "round fixed";
+		elsif(l /= arg'low) then result(h-low downto l-low) := round(arg(h downto arg'low),l); 						--round-fixed iff it is needed		--report "round fixed";
 		else null;
 		end if;
 	else																																--no ovf
 		if(ch_round = 0) then null; --report "round truncate 2";														--round-truncate
-		elsif(l /= arg'low and and_reduce(arg(h downto l)) = '0') then result(high downto l) := round(arg(h downto l-1),l);
+		elsif(l /= arg'low and and_reduce(arg(h downto l)) = '0') then result(high-low downto l-low) := round(arg(h downto l-1),l);
 --			report "round fixed 2";																								--round-fixed iff it is needed and possible as well without ovf error (the exception is for all '1' case)
 		else null;
 		end if;
@@ -211,7 +221,7 @@ begin
       return result;
 	end if;
 	lim := minimum(left-arg'low,fract_w);																							--1 less than actual length in former case to account for '1' preceeding the decimal in scientific notation; fract_w is already 1 less for the same purpose
-	result(-1 downto -lim) := float(to_slv(uresize(arg(left-1 downto arg'low), left-1, left-lim, 1, 1))); 	--float(arg_slv(-arg'low+left-1 downto -arg'low+left-lim)); float(to_slv(round(arg(left-1 downto arg'low), left-lim))); 
+	result(-1 downto -lim) := float(to_slv(urebound(uresize(arg(left-1 downto arg'low), left-1, left-lim, 1, 1),-1,-lim))); 	--float(arg_slv(-arg'low+left-1 downto -arg'low+left-lim)); float(to_slv(round(arg(left-1 downto arg'low), left-lim))); 
 	if(arg'high < 0) then result(exp_w) := '0'; end if;																		--numbers with negative starting index treat as unsigned
 	return result;
 end function sfixed2float;
@@ -252,7 +262,7 @@ begin
 	elsif(exp < low) then null; --report "zero";																			--all '0' signed
 	else
 		result(exp) := '1'; null; --report "rounding now";
-		result(exp-1 downto low) := uresize(arg_sfx(-1 downto arg'low),-1,low-exp,ch_round,ch_ovf);
+		result(exp-1 downto low) := urebound(uresize(arg_sfx(-1 downto arg'low),-1,low-exp,ch_round,ch_ovf),exp-1,low);
 	end if;
 	return result;
 end function float2sfixed;
@@ -269,12 +279,7 @@ end function float64_2sfixed;
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
-function to_slv(arg : fixed) return std_logic_vector is
-begin
-	return std_logic_vector(arg);
-end function to_slv;
-
-function to_slv(arg : float) return std_logic_vector is
+function to_slv(arg : decimal) return std_logic_vector is
 begin
 	return std_logic_vector(arg);
 end function to_slv;
