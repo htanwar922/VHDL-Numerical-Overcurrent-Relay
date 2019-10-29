@@ -1,14 +1,9 @@
---
---	Package File Template
---
---	Purpose: This package defines supplemental types, subtypes, 
---		 constants, and functions 
---
---   To use any of the example code shown below, uncomment the lines and modify as necessary
---
 
-library IEEE;
-use IEEE.STD_LOGIC_1164.all;
+library ieee;
+use ieee.std_logic_1164.all;
+
+use std.textio.all;
+use ieee.std_logic_textio.all;
 
 package my_functions is
 
@@ -32,5 +27,13 @@ begin
    else return l;
    end if;
 end function maximum;
+
+procedure writeproc ( sig: in std_logic_vector) is
+  variable li : line;
+  file output : text open write_mode is "output";
+  begin
+    write(li, std_logic_vector(sig));
+    writeline(output, li);
+end procedure writeproc;
  
 end my_functions;
