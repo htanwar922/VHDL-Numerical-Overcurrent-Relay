@@ -1,11 +1,3 @@
---
---	Package File Template
---
---	Purpose: This package defines supplemental types, subtypes, 
---		 constants, and functions 
---
---   To use any of the example code shown below, uncomment the lines and modify as necessary
---
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -23,8 +15,8 @@ package my_fixed_package is
 
 subtype sfixed_2c is fixed;
 
---function sfixed2ufixed(arg : sfixed; ch : choice := 0) return ufixed;	--choice 0: change sign bit to 0, choice 1: truncate sign bit choice 2: return as it is
---function ufixed2sfixed(arg : ufixed) return sfixed;																																								--checked
+function sfixed2ufixed(arg : sfixed; ch : choice := 0) return ufixed;	--choice 0: change sign bit to 0, choice 1: truncate sign bit choice 2: return as it is
+function ufixed2sfixed(arg : ufixed) return sfixed;																																								--checked
 
 function sm2twoc(arg : sfixed) return sfixed_2c;		--sign-magnitude to two's complement
 function twoc2sm(arg : sfixed_2c) return sfixed;		--increases vector length by 1 for sign-bit
@@ -46,8 +38,8 @@ end my_fixed_package;
 package body my_fixed_package is
 
 function join_fixed(l,r : fixed) return fixed is
-	variable high : integer := l'length + r'high;
-	variable low : integer := r'low;
+	constant high : integer := l'length + r'high;
+	constant low : integer := r'low;
 	variable result : fixed(high downto low);
 begin
 	result(high downto r'high+1) := l;
@@ -110,9 +102,9 @@ function add_sfixed(a,b : sfixed; cin : std_logic :='0') return sfixed is
 begin
 	for i in low to high loop
 		result(i) := a(i) xor b(i) xor c;
-		c := (a(i) and b(i)) or (b(i) and c) or (c and a(i));
+		c := (a_2c(i) and b_2c(i)) or (b_2c(i) and c) or (c and a_2c(i));
 	end loop;
-	result(high+1) := c;
+	result(high+1) := ( a_2c(high) and (a_2c(high) xor b_2c(high)) ) or ( result(high) and (a_2c(high) xnor b_2c(high)) );		--ovf handling
 	result := twoc2sm(result);
 	return result;
 end function add_sfixed;
