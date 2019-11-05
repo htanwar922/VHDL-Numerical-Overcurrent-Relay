@@ -1,17 +1,17 @@
-
-library ieee;
-use ieee.std_logic_1164.all;
-
-entity my_entity is
-	port(a : in std_logic; y : out std_logic);
-end entity;
-
-architecture my_arch of my_entity is
-begin
-	y<=a when a='1' else 'X';
-end architecture;
-
------------------------------------------------------------------------------------------------------------------------------------
+--
+--library ieee;
+--use ieee.std_logic_1164.all;
+--
+--entity my_entity is
+--	port(a : in std_logic; y : out std_logic);
+--end entity;
+--
+--architecture my_arch of my_entity is
+--begin
+--	y<=a when a='1' else 'X';
+--end architecture;
+--
+-------------------------------------------------------------------------------------------------------------------------------------
 
 
 library ieee;
@@ -25,8 +25,8 @@ use work.my_functions.all;
 
 package my_types is																										--take arrays as downto only
 
-type unresolved_decimal is array (integer range <>) of std_ulogic;
-alias decimal is unresolved_decimal;
+type unresolved_decimal is array (integer range <>) of std_logic;
+subtype decimal is unresolved_decimal;
 
 subtype unresolved_fixed is decimal;											--taken in sign-magnitude representation --numbers with negative starting index treat as unsigned or positive
 	subtype fixed is unresolved_fixed;
@@ -41,7 +41,7 @@ subtype unresolved_float is decimal;											--float is signed only
 
 type choice is range 0 to 3;
 
------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------
 
 function ufixed2float(arg : ufixed; exp_w : natural; fract_w : natural) return float;				--input exp_w as arg'high and fract_w as -arg'low
 function sfixed2float(arg : sfixed; exp_w : natural; fract_w : natural) return float;
@@ -74,6 +74,8 @@ function rebound(arg : sfixed; high,low : integer) return sfixed;											--hi
 function and_reduce(arg : fixed) return std_logic;
 function or_reduce(arg : fixed) return std_logic;
 function round(arg : fixed; index : integer; ch : choice := 0) return fixed;							--fixed treated as unsigned; choice 0: round wrt index-1, choice 1: just add 1
+
+component my_entity port(a : in std_logic; y : out std_logic); end component;
 
 end my_types;
 
@@ -124,7 +126,7 @@ end function or_reduce;
 function round(arg : fixed; index : integer; ch : choice := 0) return fixed is				--fixed treated as unsigned; choice 0: round wrt index-1, choice 1: just add 1
 	variable result : fixed(arg'high downto index) := arg(arg'high downto index);
 	function add_carry(ar : fixed; cin : std_logic) return fixed is
-			variable res : fixed(ar'range) := ar;
+			variable res : fixed(ar'high downto ar'low) := ar;
 			variable c : std_logic := cin;
 		begin
 			for i in ar'low to ar'high loop
@@ -166,8 +168,8 @@ function uresize(arg : fixed; high,low : integer; ch_round : choice := 0; ch_ovf
 	constant h : integer := minimum(high, arg'high);
 	constant l : integer := maximum(low, arg'low);
 	constant h_b : natural := high-low+1;
-	constant l_b : natural := 0;
-	variable result : fixed(h_b downto l_b) := (others => '0');
+	variable result : fixed(h_b downto 0) := (others => '0');
+	attribute synthesis_return of result:variable is "feed_through" ;
 begin
 --	report "arg high in uresize is  " & integer'image(arg'high);
 	if(h >= l) then result(h-low downto l-low) := arg(h downto l); end if;
@@ -207,6 +209,7 @@ function sfixed2float(arg : sfixed; exp_w : natural; fract_w : natural) return f
 	variable exp : integer;
 	variable result : float(exp_w downto -fract_w) := (others => '0');
 	variable exp_arg : std_logic_vector(exp_w-1 downto 0);
+	variable arg_resize : sfixed(arg'high downto arg'low);
 begin
 	if(left=integer'low) then
 		result := (others => '0');
@@ -221,7 +224,8 @@ begin
       return result;
 	end if;
 	lim := minimum(left-arg'low,fract_w);																							--1 less than actual length in former case to account for '1' preceeding the decimal in scientific notation; fract_w is already 1 less for the same purpose
-	result(-1 downto -lim) := float(to_slv(urebound(uresize(arg(left-1 downto arg'low), left-1, left-lim, 1, 1),-1,-lim))); 	--float(arg_slv(-arg'low+left-1 downto -arg'low+left-lim)); float(to_slv(round(arg(left-1 downto arg'low), left-lim))); 
+	arg_resize(-1 downto -lim) := uresize(arg(left-1 downto arg'low), left-1, left-lim, 1, 1);
+	result(-1 downto -lim) := float(to_slv(arg_resize(-1 downto -lim))); 	--float(arg_slv(-arg'low+left-1 downto -arg'low+left-lim)); float(to_slv(round(arg(left-1 downto arg'low), left-lim))); 
 	if(arg'high < 0) then result(exp_w) := '0'; end if;																		--numbers with negative starting index treat as unsigned
 	return result;
 end function sfixed2float;
@@ -262,7 +266,7 @@ begin
 	elsif(exp < low) then null; --report "zero";																			--all '0' signed
 	else
 		result(exp) := '1'; null; --report "rounding now";
-		result(exp-1 downto low) := urebound(uresize(arg_sfx(-1 downto arg'low),-1,low-exp,ch_round,ch_ovf),exp-1,low);
+--		result(exp-1 downto low) := urebound(uresize(arg_sfx(-1 downto arg'low),-1,low-exp,ch_round,ch_ovf),exp-1,low);
 	end if;
 	return result;
 end function float2sfixed;
