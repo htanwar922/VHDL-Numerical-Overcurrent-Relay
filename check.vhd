@@ -11,16 +11,18 @@ use work.my_fixed_package.all;
 use work.my_float_package.all;
 
 entity check is
-	port(a : in float(6 downto -7); --:= "001100011";
-			y : out float(6 downto -7);
-			y2 : out sfixed(7 downto -7)
+	port(a : in float(1 downto -7); -- := "110000000"; --"11001100110011";
+--			y : out float(6 downto -7);
+--			y2 : out sfixed(7 downto -7)
+			sqr : out float(0 downto -14)
 		);
 end check;
 
 architecture behavioral of check is
-	signal yx : sfixed(7 downto -7);
+--	signal yx : sfixed(7 downto -7);
 begin
-	yx <= float2sfixed(a,7,-7,0,0);
-	y2 <= yx;
-	y <= sfixed2float(yx,6,7);
+--	yx <= float2sfixed(a,7,-7,0,0);
+--	y2 <= yx;
+--	y <= sfixed2float(yx,6,7);
+	sqr <= calc_sqrt(a);
 end behavioral;
