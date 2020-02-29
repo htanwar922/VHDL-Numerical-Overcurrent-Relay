@@ -46,5 +46,4 @@ begin
 	report s & " " & str;
 end procedure writeproc;
 
-
 end my_functions;
