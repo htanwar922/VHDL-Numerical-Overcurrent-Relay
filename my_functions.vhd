@@ -9,7 +9,7 @@ package my_functions is
 
 function minimum(l,r : integer) return integer;
 function maximum(l,r : integer) return integer;
-procedure writeproc(sig: in std_logic_vector; s : string);
+procedure writeproc(sig: in std_logic_vector; s : string := "");
 
 end my_functions;
 
@@ -29,7 +29,7 @@ begin
    end if;
 end function maximum;
 
-procedure writeproc(sig: in std_logic_vector; s : string) is
+procedure writeproc(sig : in std_logic_vector; s : string := "") is
 	variable li : line;
 	variable str : string(1 to sig'length);
 	file f_in : text; -- open read_mode is "output";
@@ -43,7 +43,8 @@ begin
 	readline(f_in, li);
 	read(li, str);
 	file_close(f_in);
-	report s & str;
+	report s & " " & str;
 end procedure writeproc;
- 
+
+
 end my_functions;
