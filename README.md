@@ -1,5 +1,4 @@
 # VHDL_fixed_float_types
-Mere fixed and float packages hain re... ;)
 
 Refer my_types.vhd for the enumerated types used and conversions. 
 Then my_float_package.vhd for the functions. 
