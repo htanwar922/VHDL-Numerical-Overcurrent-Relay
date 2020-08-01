@@ -8,7 +8,7 @@ For trip-time : <br>
 For reset-time : <br>
 ![formula](https://render.githubusercontent.com/render/math?math=t=TDS*(\frac{t_r}{M^2-1}))
 
-### Fixed-float types
+## Fixed-float types
 #### Functions:
 These are few utility functions implemented. The file has a function (self-implemented) to print the signals (std_logic_vectors) to ISim console while running simulations through ISE.
 
