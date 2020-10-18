@@ -19,7 +19,7 @@ end entity;
 architecture dft32 of dft32 is
 	signal C : float32_arr(0 to N-1+N/4) :=
 		(
-			"00000000000000000000000000000000",
+				"00000000000000000000000000000000",
             "00111110001000000011000001011000",
             "00111110100111100011011101111000",
             "00111110111010000111000101110000",
@@ -81,27 +81,26 @@ begin
         variable tmp_C 	: float32 := b"0_0000_0000_0000_0000_0000_0000_0000_000";
         variable sqrt_tmp 	: float32 := b"0_0111_1111_0000_0000_0000_0000_0000_000";
 	begin
---		if rising_edge(clk) then
---			for i in 0 to N-1 generate
---				tmp_S := tmp_S + x(i) * C(i);
---				tmp_C := tmp_C + x(i) * C(i + N/4);
---			end generate;
---		end if;
---		if falling_edge(clk) then
---            tmp <= tmp_S * two_float;
---		end if;
---		X_1 <= sqrt(tmp);
+		if rising_edge(clk) then
+			for i in 0 to N-1 loop
+				tmp_S := tmp_S + x(i) * C(i);
+				tmp_C := tmp_C + x(i) * C(i + N/4);
+			end loop;
+		end if;
+		if falling_edge(clk) then
+            tmp <= tmp_S * two_float;
+		end if;
+		X_1 <= sqrt(tmp);
 	end process;
 	
-	
-	process_update_samples : process(clk, x)
-        variable current : natural := 0;
-	begin
---		if rising_edge(clk) then
---			x(current) <= adc;
---			current := current+1;
---			if(current = N) then current := 0; end if;
---		end if;
-	end process;
+--	process_update_samples : process(clk, x)
+--        variable current : natural := 0;
+--	begin
+----		if rising_edge(clk) then
+----			x(current) <= adc;
+----			current := current+1;
+----			if(current = N) then current := 0; end if;
+----		end if;
+--	end process;
 	
 end architecture;
