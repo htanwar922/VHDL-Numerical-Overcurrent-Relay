@@ -40,23 +40,24 @@ begin
         t_clk  <= not t_clk after 10 ns;
     end process;
     
---    process_test : process(t_clk)
---        file f_in : text open read_mode is "test_dft.txt";
---        variable li : line;
---        variable x : std_ulogic_vector(31 downto 0);
---        variable ret : boolean;
---    begin
---        --file_open(f_in, "test_dft.txt",  read_mode);
---        while not endfile(f_in) loop
---            --wait for 10 ns;
---            if rising_edge(t_clk) then
---                readline(f_in, li);
---                ieee.std_logic_textio.read(li, x, ret);
---                t_adc <= decimal(x);
---            end if;
---            --wait for 10 ns;
---        end loop;
---    end process;
+    process_test : process(t_clk)
+        file f_in : text open read_mode is "test_dft.txt";
+        variable li : line;
+        variable x : std_ulogic_vector(31 downto 0);
+        variable ret : boolean;
+    begin
+        --file_open(f_in, "test_dft.txt",  read_mode);
+        while not endfile(f_in) loop
+            --wait for 10 ns;
+            if rising_edge(t_clk) then
+                readline(f_in, li);
+                ieee.std_logic_textio.read(li, x, ret);
+					 writeproc(std_logic_vector(x));
+                t_adc <= decimal(x);
+            end if;
+            --wait for 10 ns;
+        end loop;
+    end process;
     
 end architecture;
 
