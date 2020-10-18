@@ -134,8 +134,8 @@ begin
 	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""+/-"" of " & my_float_package'instance_name severity warning; result := (l(l'left) & spcl_float(inf,result)(result'high-1 downto result'low));
 	elsif(check_float(abs(r))=inf) then report "right argument inf/inf_neg in function ""+/-"" of " & my_float_package'instance_name severity warning; result := (r(r'left) & spcl_float(inf,result)(result'high-1 downto result'low));
 	-- rtl_synthesis off
-	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; return decimal(null_vec);
-	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; return decimal(null_vec);
+	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
 	-- rtl_synthesis on
 	else
         if(l=-r) then return spcl_float(zero,l); end if;
@@ -196,8 +196,8 @@ begin
 	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""*"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
 	elsif(check_float(abs(r))=inf) then report "right argument inf/inf_neg in function ""*"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
 	-- rtl_synthesis off
-	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; return decimal(null_vec);
-	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; return decimal(null_vec);
+	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
 	-- rtl_synthesis on
 	else
         res_uns := l_uns*r_uns;
@@ -238,8 +238,8 @@ begin
 	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""/"" of " & my_float_package'instance_name severity warning; return (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
 	elsif(check_float(abs(r))=inf) then return (result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low));
 	-- rtl_synthesis off
-	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; return decimal(null_vec);
-	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; return decimal(null_vec);
+	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
 	-- rtl_synthesis on
 	end if;
 	
@@ -287,7 +287,7 @@ begin
 	if(check_float(abs(arg))=zero) then return spcl_float(zero,result);
 	elsif(check_float(arg)=inf) then return spcl_float(inf,result);	-- not for inf_neg
 	-- rtl_synthesis off
-	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function sqrt of " & my_float_package'instance_name severity error; return decimal(null_vec);
+	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function sqrt of " & my_float_package'instance_name severity error; --return decimal(null_vec);
 	-- rtl_synthesis on
 	elsif(arg(arg'high)='1') then assert false report "negative arg in function sqrt of " & my_float_package'instance_name severity error;
 	end if;
@@ -337,7 +337,7 @@ begin
 	if(check_float(abs(arg))=zero) then return spcl_float(zero,result);
 	elsif(check_float(arg)=inf) then return spcl_float(inf,result);	-- not for inf_neg
 	-- rtl_synthesis off
-	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function pow of " & my_float_package'instance_name severity error; return decimal(null_vec);
+	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function pow of " & my_float_package'instance_name severity error; --return decimal(null_vec);
 	-- rtl_synthesis on
 	elsif(arg(arg'high)='1') then assert false report "negative arg in function pow of " & my_float_package'instance_name severity error;
 	end if;

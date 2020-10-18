@@ -11,7 +11,7 @@ entity dft32 is
 	generic( N : natural := 40 );
 	port (
         clk : in std_logic := '0';
-        adc : in float32;
+        adc : in float32 := "00000000000000000000000000000000";
         X_1 : out float32
     );
 end entity;
@@ -88,19 +88,23 @@ begin
 			end loop;
 		end if;
 		if falling_edge(clk) then
-            tmp <= tmp_S * two_float;
+            tmp <= (sq(tmp_S) + sq(tmp_C)) * two_float / N_float;
+				tmp_S := b"0_0000_0000_0000_0000_0000_0000_0000_000";
+				tmp_C := b"0_0000_0000_0000_0000_0000_0000_0000_000";
 		end if;
 		X_1 <= sqrt(tmp);
 	end process;
 	
---	process_update_samples : process(clk, x)
---        variable current : natural := 0;
---	begin
-----		if rising_edge(clk) then
-----			x(current) <= adc;
-----			current := current+1;
-----			if(current = N) then current := 0; end if;
-----		end if;
---	end process;
+	process_update_samples : process(clk, x)
+        variable current : natural := 0;
+	begin
+		if rising_edge(clk) then
+			x(current) <= adc;
+			current := current+1;
+		end if;
+		if falling_edge(clk) then
+			if(current = N) then current := 0; end if;
+		end if;
+	end process;
 	
 end architecture;

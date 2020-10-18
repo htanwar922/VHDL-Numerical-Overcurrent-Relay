@@ -7,7 +7,7 @@ use ieee.std_logic_arith.all;
 use std.textio.all;
 
 use work.my_types.all;
-use work.my_fixed_package.all;
+--use work.my_fixed_package.all;
 use work.my_float_package.all;
 
 entity testbench is

@@ -13,10 +13,9 @@ end entity;
 
 architecture t_dft32 of t_dft32 is
     component dft32 is
-        --generic( N : natural := 40 );
         port (
 			clk : in std_logic := '0';
-			adc : in float32;
+			adc : in float32 := "00000000000000000000000000000000";
 			X_1 : out float32
 		);
     end component;
@@ -25,19 +24,19 @@ architecture t_dft32 of t_dft32 is
     signal t_adc : float32;
     signal t_X_1 : float32;
 begin
-    uut : dft32
-        --generic map( N => 40 );
-        port map (
-            clk => t_clk,
-            adc => t_adc,
-            X_1 => t_X_1
-        );
+	 uut : dft32
+	 port map (
+		clk => t_clk,
+		adc => t_adc,
+		X_1 => t_X_1
+	 );
     
     --reset <= '1', '1' after 100 ns, '0' after 503 ns;
     
-    process_clock : process(t_clk)
+    process_clock : process
     begin
-        t_clk  <= not t_clk after 10 ns;
+			t_clk <= '0'; wait for 10 ns; t_clk <= '1'; wait for 10 ns;
+--        t_clk  <= not t_clk after 10 ns;
     end process;
     
     process_test : process(t_clk)
@@ -47,16 +46,16 @@ begin
         variable ret : boolean;
     begin
         --file_open(f_in, "test_dft.txt",  read_mode);
-        while not endfile(f_in) loop
-            --wait for 10 ns;
+--        while not endfile(f_in) loop
             if rising_edge(t_clk) then
                 readline(f_in, li);
                 ieee.std_logic_textio.read(li, x, ret);
 					 writeproc(std_logic_vector(x));
                 t_adc <= decimal(x);
             end if;
-            --wait for 10 ns;
-        end loop;
+--            wait for 10 ns;
+--        end loop;
+--		  wait;
     end process;
     
 end architecture;
