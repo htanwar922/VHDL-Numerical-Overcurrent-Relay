@@ -15,25 +15,25 @@ end testbench;
 
 architecture behavior of testbench is
 	component check
-		port( a : in float(1 downto -7);
---				y : out float(6 downto -7);
---				y2 : out sfixed(7 downto -7)
-				sqr : out float(0 downto -14)
-			);
+		port(
+            a : in float(7 downto -10) := b"0_1000001_0111000000";
+            p : in sfixed(3 downto -3) := b"0_111_101";
+            y : out float(7 downto -10)
+		);
 	end component;
 
-	signal t_a : float(1 downto -7) := "110000000"; --"11000111100110"; --:= "11";
---	signal t_y : float(6 downto -7);
---	signal t_y2 : sfixed(7 downto -7);
-	signal sqr : float(0 downto -14);
-	signal clk : bit;
+	signal t_a : float(7 downto -10) := b"0_1000001_0111000000";
+	signal t_p : sfixed(3 downto -3) := b"0_111_101";
+	signal t_y : float(7 downto -10);
+	signal clk : std_logic;
 
 begin
-	t_check: check port map(a => t_a,
---									y => t_y,
---									y2 => t_y2
-									sqr => sqr
-									);
+	t_check: check
+	port map(
+        a => t_a,
+        p => t_p,
+        y => t_y
+	);
 	
 	clock : process
 	begin
@@ -48,10 +48,10 @@ begin
 --		t_a <= "100000000"; --"01001111100110";
 		wait for 300 ns; -- wait until global set/reset completes
 
-		t_a <= "010011000"; --"00111010100110";
+		t_a <= b"0_1000010_0111000000"; --"00111010100110";
 		wait for 300 ns;
 		
-		t_a <= "010000001"; --"00111001100110";
+		t_a <= b"0_1000011_0111000000"; --"00111001100110";
 
 		wait for 1000 ns;
 	end process tb;

@@ -14,7 +14,7 @@ entity ocr is
 			);
 end ocr;
 
-architecture behavioral of ocr is
+architecture ocr of ocr is
 	signal one  : float32 := b"0_0111_1111_0000_0000_0000_0000_0000_000";
 	signal A    : float32 := b"0_0111_1111_0000_0000_0000_0000_0000_000";
 	signal B    : float32 := b"0_0111_1111_0000_0000_0000_0000_0000_000";
@@ -50,5 +50,5 @@ begin
 		tr <= TDS*tmp3;
 	end process;
 
-end behavioral;
+end architecture;
 
