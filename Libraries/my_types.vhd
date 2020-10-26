@@ -115,7 +115,11 @@ begin
 	-- rtl_synthesis off
 	if(not(cleanvec(l,r))) then return smg(null_vec); end if;
 	-- rtl_synthesis on
-	res := xl+xr;
+	res := xl + xr;
+--	writeproc(to_slv(l), "l :");
+--	writeproc(to_slv(r), "r :");
+--	writeproc(to_slv(xl), "xl :");
+--	writeproc(to_slv(xr), "xr :");
 	return to_smg(res);
 end add_smg;
 

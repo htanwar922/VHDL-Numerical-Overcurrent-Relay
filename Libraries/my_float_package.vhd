@@ -86,15 +86,15 @@ function check_float(arg : float) return float_vec is
 begin
 	if(arg'length = 0) then return empty;
 	elsif(arg = spcl_float(zero,arg)) then return zero;
-	elsif(arg = spcl_float(zero_neg,arg)) then return zero_neg;
-	elsif(arg = spcl_float(inf,arg)) then return inf;
-	elsif(arg = spcl_float(inf_neg,arg)) then return inf_neg;
-	elsif(and_reduce(arg(arg'high-1 downto 0))='1' and or_reduce(arg(-1 downto arg'low))/='0') then return nan;	-- exp all '1' fract not all '0' case
-	elsif(not(check_uxz(arg))) then
-		if(arg(arg'high)='0') then return pos;
+--	elsif(arg = spcl_float(zero_neg,arg)) then return zero_neg;
+--	elsif(arg = spcl_float(inf,arg)) then return inf;
+--	elsif(arg = spcl_float(inf_neg,arg)) then return inf_neg;
+--	elsif(and_reduce(arg(arg'high-1 downto 0))='1' and or_reduce(arg(-1 downto arg'low))/='0') then return nan;	-- exp all '1' fract not all '0' case
+--	elsif(not(check_uxz(arg))) then
+		elsif(arg(arg'high)='0') then return pos;
 		else return neg;
-		end if;
-	else return nan;
+--		end if;
+--	else return nan;
 	end if;
 end function check_float;
 
@@ -116,9 +116,11 @@ end function "-";
 function "+"(l,r : float) return float is
 	variable exp_w		: integer := l'high;
 	variable fract_w 	: integer := -l'low;
-	variable exp_base : unsigned(exp_w-2 downto 0) := (others => '1');
+	variable exp_base   : unsigned(exp_w-2 downto 0) := (others => '1');
 	variable l_exp		: unsigned(l'high-1 downto 0) := to_unsigned(l(l'high-1 downto 0));
 	variable r_exp		: unsigned(r'high-1 downto 0) := to_unsigned(r(r'high-1 downto 0));
+--	variable exp		: unsigned(l'high-1 downto 0) := (others => '0');
+--	variable exp_one	: unsigned(l'high-1 downto 0) := (others => '0');
 	variable d_exp		: integer := 0;
 	variable l_smg		: smg(fract_w+1 downto 0) := smg("01" & to_unsigned(l(-1 downto l'low)));
 	variable r_smg		: smg(fract_w+1 downto 0) := smg("01" & to_unsigned(r(-1 downto l'low)));
@@ -126,17 +128,17 @@ function "+"(l,r : float) return float is
 	variable result 	: float(exp_w downto -fract_w);
 begin
 	-- rtl_synthesis off
-	if(not(cleanvec(l,r))) then report "function ""+"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
+--	if(not(cleanvec(l,r))) then report "function ""+"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
 	-- rtl_synthesis on
 	
 	if(check_float(abs(l))=zero) then result := r;
 	elsif(check_float(abs(r))=zero) then result := l;
-	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""+/-"" of " & my_float_package'instance_name severity warning; result := (l(l'left) & spcl_float(inf,result)(result'high-1 downto result'low));
-	elsif(check_float(abs(r))=inf) then report "right argument inf/inf_neg in function ""+/-"" of " & my_float_package'instance_name severity warning; result := (r(r'left) & spcl_float(inf,result)(result'high-1 downto result'low));
-	-- rtl_synthesis off
-	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	-- rtl_synthesis on
+--	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""+/-"" of " & my_float_package'instance_name severity warning; result := (l(l'left) & spcl_float(inf,result)(result'high-1 downto result'low));
+--	elsif(check_float(abs(r))=inf) then report "right argument inf/inf_neg in function ""+/-"" of " & my_float_package'instance_name severity warning; result := (r(r'left) & spcl_float(inf,result)(result'high-1 downto result'low));
+--	-- rtl_synthesis off
+--	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+--	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""+/-"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+--	-- rtl_synthesis on
 	else
         if(l=-r) then return spcl_float(zero,l); end if;
         if(l_exp > r_exp) then
@@ -150,11 +152,20 @@ begin
         end if;
         l_smg(l_smg'left) := l(l'high);
         r_smg(r_smg'left) := r(r'high);
-        res_smg := add_smg(l_smg,r_smg);
+        res_smg := add_smg(l_smg, r_smg);
         result(result'left) := res_smg(res_smg'left);
-        if(res_smg(res_smg'left-1)='1') then
+        if(res_smg(fract_w+1)='1') then
             result(exp_w-1 downto 0) := float(to_unsigned(result(exp_w-1 downto 0)) + 1);
-            res_smg := "srl"(res_smg,1);
+            res_smg := res_smg srl 1;
+        else
+            for i in fract_w downto 0 loop
+                if(res_smg(fract_w) = '0') then
+                    result(exp_w-1 downto 0) := to_decimal(to_unsigned(result(exp_w-1 downto 0)) - to_unsigned(1, exp_w));
+                    res_smg := res_smg sll 1;
+                else
+                    exit;
+                end if;
+            end loop;
         end if;
         result(-1 downto -fract_w) := to_decimal(res_smg(fract_w-1 downto 0));
         if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function ""+/-"" of " & my_float_package'instance_name severity warning; end if;
@@ -167,7 +178,7 @@ function "-"(l,r : float) return float is
 	variable xr : float(r'range) := -r;
 begin
 	-- rtl_synthesis off
-	if(not(cleanvec(l,r))) then report "function ""-"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
+--	if(not(cleanvec(l,r))) then report "function ""-"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
 	-- rtl_synthesis on
 	return (l+xr);
 end function "-";
@@ -186,19 +197,18 @@ function "*"(l,r : float) return float is
 	variable res_uns	: unsigned(2*fract_w+1 downto 0);
 	variable result 	: float(l'range) := (others => '0');
 begin
-    print(l);
 	-- rtl_synthesis off
-	if(not(cleanvec(l,r))) then report "function ""*"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
+--	if(not(cleanvec(l,r))) then report "function ""*"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
 	-- rtl_synthesis on
 	result(result'left) := l(l'left) xor r(r'left);
 	
-	if(check_float(abs(l))=zero or check_float(abs(r))=zero) then result := result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low);
-	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""*"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
-	elsif(check_float(abs(r))=inf) then report "right argument inf/inf_neg in function ""*"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
-	-- rtl_synthesis off
-	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	-- rtl_synthesis on
+	if(check_float(abs(l))=zero or check_float(abs(r))=zero) then null; --result := result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low);
+--	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""*"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
+--	elsif(check_float(abs(r))=inf) then report "right argument inf/inf_neg in function ""*"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
+--	-- rtl_synthesis off
+--	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+--	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""*"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+--	-- rtl_synthesis on
 	else
         res_uns := l_uns*r_uns;
         exp := exp + l_exp + r_exp - exp_base + ("0" & res_uns(res_uns'left));
@@ -229,40 +239,40 @@ function "/"(l,r : float) return float is
 	variable result 	: float(l'range) := (others => '0');
 begin
 	-- rtl_synthesis off
-	if(not(cleanvec(l,r))) then report "function ""/"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
+--	if(not(cleanvec(l,r))) then report "function ""/"" of " & my_float_package'instance_name; return decimal(null_vec); end if;
 	-- rtl_synthesis on
 	result(result'left) := l(l'left) xor r(r'left);
 	
-	if(check_float(abs(l))=zero) then return (result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low));
-	elsif(check_float(abs(r))=zero) then report "right argument zero/zero_neg in function ""/"" of " & my_float_package'instance_name severity warning; return (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
-	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""/"" of " & my_float_package'instance_name severity warning; return (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
-	elsif(check_float(abs(r))=inf) then return (result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low));
-	-- rtl_synthesis off
-	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	-- rtl_synthesis on
+	if(check_float(abs(l))=zero) then null; --result := (result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low));
+	elsif(check_float(abs(r))=zero) then report "right argument zero/zero_neg in function ""/"" of " & my_float_package'instance_name severity warning; result(result'high-1 downto 0) := (others => '1');
+--	elsif(check_float(abs(l))=inf) then report "left argument inf/inf_neg in function ""/"" of " & my_float_package'instance_name severity warning; result := (result(result'left) & spcl_float(inf,result)(result'high-1 downto result'low));
+--	elsif(check_float(abs(r))=inf) then result := (result(result'left) & spcl_float(zero,result)(result'high-1 downto result'low));
+--	-- rtl_synthesis off
+--	elsif(check_float(abs(l))=nan or check_float(abs(l))=empty) then report "left argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; --result := decimal(null_vec);
+--	elsif(check_float(abs(r))=nan or check_float(abs(r))=empty) then report "right argument nan or empty in function ""/"" of " & my_float_package'instance_name severity error; --result := decimal(null_vec);
+--	-- rtl_synthesis on
+	else
+        exp := '0' & l_exp;
+        exp := exp - r_exp; 
+        exp := exp + exp_base;
+        if(l_uns < r_uns) then
+            exp := exp - to_unsigned(1,exp'length);
+            l_uns := l_uns sll 1;
+        end if;
+        result(exp_w-1 downto 0) := to_decimal(exp)(exp_w-1 downto 0);
+        
+        for i in 0 downto -fract_w loop
+            if(l_uns >= r_uns) then
+                res(i) := '1';
+                l_uns := l_uns - r_uns;
+            end if;
+            l_uns := l_uns sll 1;
+        end loop;
+        
+        result(-1 downto -fract_w) := res(-1 downto -fract_w);
+        if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function ""/"" of " & my_float_package'instance_name severity warning; end if;	
 	end if;
-	
-	exp := '0' & l_exp;
-	exp := exp - r_exp; 
-	exp := exp + exp_base;
-	if(l_uns < r_uns) then
-		exp := exp - to_unsigned(1,exp'length);
-		l_uns := l_uns sll 1;
-	end if;
-	result(exp_w-1 downto 0) := to_decimal(exp)(exp_w-1 downto 0);
-	
-	for i in 0 downto -fract_w loop
-		if(l_uns >= r_uns) then
-			res(i) := '1';
-			l_uns := l_uns - r_uns;
-		end if;
-		l_uns := l_uns sll 1;
-	end loop;
-	
-	result(-1 downto -fract_w) := res(-1 downto -fract_w);
-	if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function ""/"" of " & my_float_package'instance_name severity warning; end if;
-	return result;	
+	return result;
 end function "/";
 
 function "="(l,r : float) return boolean is
@@ -284,36 +294,36 @@ function sqrt(arg : float) return float is
 	variable result 	: float(arg'range) := (others => '0');
 begin
 	
-	if(check_float(abs(arg))=zero) then return spcl_float(zero,result);
-	elsif(check_float(arg)=inf) then return spcl_float(inf,result);	-- not for inf_neg
-	-- rtl_synthesis off
-	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function sqrt of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+	if(check_float(abs(arg))=zero) then result := spcl_float(zero,result);
+--	elsif(check_float(arg)=inf) then result := spcl_float(inf,result);	-- not for inf_neg
+--	-- rtl_synthesis off
+--	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function sqrt of " & my_float_package'instance_name severity error; --result := decimal(null_vec);
 	-- rtl_synthesis on
 	elsif(arg(arg'high)='1') then assert false report "negative arg in function sqrt of " & my_float_package'instance_name severity error;
+	else	
+        res_exp := res_exp - exp_base;
+        if(res_exp(0)='1') then
+            arg_uns := arg_uns sll 1;
+        end if;
+        res_exp := res_exp srl 1;
+        res_exp := res_exp + exp_base;
+        result(exp_w-1 downto 0) := to_decimal(res_exp(exp_w-1 downto 0)); 
+        
+        temp_one(2*fract_w) := '1';
+        for i in res'range loop
+            if(arg_uns >= temp + temp_one) then
+                temp := temp + temp_one;			-- to be subtracted from dividend
+                arg_uns := arg_uns - temp;
+                res(i) := '1';							-- append '1' if true, else '0'
+                temp := temp + temp_one;			-- add appended (in result) to divisor if the former is '1'
+            end if;
+            temp := temp srl 1;
+            temp_one := temp_one srl 2;
+        end loop;
+        
+        result(-1 downto -fract_w) := res(-1 downto -fract_w);
+        if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function sqrt of " & my_float_package'instance_name severity warning; end if;
 	end if;
-	
-	res_exp := res_exp - exp_base;		
-	if(res_exp(0)='1') then
-		arg_uns := arg_uns sll 1;
-	end if;
-	res_exp := res_exp srl 1;
-	res_exp := res_exp + exp_base;
-	result(exp_w-1 downto 0) := to_decimal(res_exp(exp_w-1 downto 0)); 
-	
-	temp_one(2*fract_w) := '1';
-	for i in res'range loop
-		if(arg_uns >= temp + temp_one) then
-			temp := temp + temp_one;			-- to be subtracted from dividend
-			arg_uns := arg_uns - temp;
-			res(i) := '1';							-- append '1' if true, else '0'
-			temp := temp + temp_one;			-- add appended (in result) to divisor if the former is '1'
-		end if;
-		temp := temp srl 1;
-		temp_one := temp_one srl 2;
-	end loop;
-	
-	result(-1 downto -fract_w) := res(-1 downto -fract_w);
-	if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function sqrt of " & my_float_package'instance_name severity warning; end if;
 	return result;
 end function sqrt;
 
@@ -334,35 +344,35 @@ function pow(arg : float; p : sfixed) return float is
 	variable res_fract: float(arg'range) := (others => '0');
 	variable result	: float(arg'range) := (others => '0');
 begin
-	if(check_float(abs(arg))=zero) then return spcl_float(zero,result);
-	elsif(check_float(arg)=inf) then return spcl_float(inf,result);	-- not for inf_neg
-	-- rtl_synthesis off
-	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function pow of " & my_float_package'instance_name severity error; --return decimal(null_vec);
-	-- rtl_synthesis on
-	elsif(arg(arg'high)='1') then assert false report "negative arg in function pow of " & my_float_package'instance_name severity error;
+	if(check_float(abs(arg))=zero) then result := spcl_float(zero,result);
+--	elsif(check_float(arg)=inf) then result := spcl_float(inf,result);	-- not for inf_neg
+--	-- rtl_synthesis off
+--	elsif(check_float(abs(arg))=nan or check_float(abs(arg))=empty) then report "argument nan or empty in function pow of " & my_float_package'instance_name severity error; --return decimal(null_vec);
+--	-- rtl_synthesis on
+--	elsif(arg(arg'high)='1') then assert false report "negative arg in function pow of " & my_float_package'instance_name severity error;
+	else	
+        if(p(p'high)='0') then
+            -- integral power
+            next_mult := arg;
+            res_int(exp_w-2 downto 0) := (others => '1');
+            for i in 0 to int_w loop
+                if(p(i)='1') then res_int := res_int * next_mult; end if;
+                next_mult := sq(next_mult);
+            end loop;
+            
+            -- fractional power
+            next_mult := sqrt(arg);
+            res_fract(exp_w-2 downto 0) := (others => '1');
+            for i in -1 downto p'low loop
+                if(p(i)='1') then res_fract := res_fract * next_mult; end if;
+                next_mult := sqrt(next_mult);
+            end loop;
+            
+            -- final result
+            result := res_int * res_fract;
+        end if;
+        if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function pow of " & my_float_package'instance_name severity warning; end if;
 	end if;
-	
-	if(p(p'high)='0') then
-		-- integral power
-		next_mult := arg;
-		res_int(exp_w-2 downto 0) := (others => '1');
-		for i in 0 to int_w loop
-			if(p(i)='1') then res_int := res_int * next_mult; end if;
-			next_mult := sq(next_mult);
-		end loop;
-		
-		-- fractional power
-		next_mult := sqrt(arg);
-		res_fract(exp_w-2 downto 0) := (others => '1');
-		for i in -1 downto p'low loop
-			if(p(i)='1') then res_fract := res_fract * next_mult; end if;
-			next_mult := sqrt(next_mult);
-		end loop;
-		
-		-- final result
-		result := res_int * res_fract;
-	end if;
-	if(and_reduce(result(exp_w-1 downto 0))='1') then report "overflow detected in result of function pow of " & my_float_package'instance_name severity warning; end if;
 	return result;
 end function pow;
 
