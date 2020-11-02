@@ -23,7 +23,7 @@ begin
 	begin
 		if(clk_in' event and clk_in ='1') then
 			counter <= counter +1;
-			if(counter = 200000) then
+			if(counter = 2500) then
 				counter <= 0;
 				tmp <= not tmp;
 			end if;

@@ -11,7 +11,7 @@ end t_relay;
 
 architecture t_relay of t_relay is 
 	 component overcurrent_relay
-	 port	(	adc 				: in float32;
+	 port	(	adc 				: in float32 := "00000000000000000000000000000000";
 				clk_in			: in std_logic 	:= '0';
 				trip_signal 	: out std_logic 	:= '0'
 			);
@@ -24,7 +24,7 @@ architecture t_relay of t_relay is
 			);
 	 end component;
 
-	 signal adc				: float32;
+	 signal adc				: float32 := "00000000000000000000000000000000";
 	 signal clk_in			: std_logic;
 	 signal clk_out			: std_logic;
 	 signal trip_signal	: std_logic;
@@ -37,21 +37,22 @@ begin
 	clock : process
 	begin
 		clk_in <= '0';
-		wait for 625 ps;
+		wait for 50 ns;
 		clk_in <= '1';
-		wait for 625 ps;
+		wait for 50 ns;
 	end process;
 	
 	 process_test : process(clk_out)
-        file f_in : text open read_mode is "test_cases_gen1.txt";
-        variable li : line;
-        variable x : std_ulogic_vector(31 downto 0);
-        variable ret : boolean;
+       file f_in : text open read_mode is "test_cases_gen1.txt";
+       variable li : line;
+       variable x : std_ulogic_vector(31 downto 0);
+       variable ret : boolean;
+       --variable Im : float32 := x"42800000";
     begin
             if rising_edge(clk_out) then
-                readline(f_in, li);
-                ieee.std_logic_textio.read(li, x, ret);
-                adc <= float32(x);
+               readline(f_in, li);
+               ieee.std_logic_textio.read(li, x, ret);
+               adc <= float32(x);-- * Im;
             end if;
     end process;
 end architecture;

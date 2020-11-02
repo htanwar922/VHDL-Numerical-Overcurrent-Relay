@@ -8,7 +8,7 @@ use work.my_float_package.all;
 use work.my_functions.all;
 
 entity overcurrent_relay is
-	port	(	adc 		: in float32    := "01000000000000000000000000000000"; 
+	port	(	adc 		: in float32    := "00000000000000000000000000000000"; 
 				trip_signal : out std_logic := '0';
 				clk_in		: in std_logic 	:= '0'
 			);
